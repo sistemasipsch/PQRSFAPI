@@ -1,0 +1,31 @@
+# Proxy HTTPS del backend. Caddy obtiene y renueva el certificado (Let's Encrypt)
+# automáticamente para API_DOMAIN; el DNS de ese dominio debe apuntar a la IP del VPS.
+
+{$API_DOMAIN} {
+	encode gzip
+
+	# Adjuntos del formulario (Spring acepta hasta 55 MB por solicitud)
+	request_body {
+		max_size 60MB
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			# IP real del ciudadano (se usa en auditoría y bloqueo de intentos).
+			# Se reemplaza, no se encadena, para que no se pueda falsificar.
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Todo lo que no sea /api no existe en este dominio (el frontend está en Hostinger)
+	handle {
+		respond 404
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+}

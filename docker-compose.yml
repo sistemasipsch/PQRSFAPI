@@ -1,0 +1,77 @@
+# ============================================================================
+# PQRSF SIAU · despliegue del backend en el VPS
+#
+#   Internet ──443──> caddy (HTTPS automático) ──> backend:8080 ──> db:5432
+#
+# Solo caddy publica puertos (80/443). El backend y PostgreSQL quedan en la red
+# interna de Docker, sin acceso desde internet.
+#
+# Uso:  cp .env.docker.example .env   (completar)   →   docker compose up -d --build
+# ============================================================================
+
+name: pqrsf-siau
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pqrsf-siau
+      POSTGRES_USER: ${DB_USER:-pqrsf}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env}
+      TZ: America/Bogota
+      PGTZ: America/Bogota
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d pqrsf-siau"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    image: pqrsf-siau-backend:1.0.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # La base de datos es el servicio "db" de este mismo compose
+      DB_URL: jdbc:postgresql://db:5432/pqrsf-siau
+      DB_USER: ${DB_USER:-pqrsf}
+      DB_PASSWORD: ${DB_PASSWORD}
+      UPLOAD_DIR: /app/uploads
+      LOG_FILE: /app/logs/backend.log
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Defina API_DOMAIN en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:
+  logs:
+  caddy_data:
+  caddy_config:

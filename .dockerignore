@@ -1,0 +1,18 @@
+# Solo se necesitan pom.xml y src/ para construir la imagen
+.git
+.gitignore
+.env
+*.env
+.env.*
+target/
+uploads/
+logs/
+database/
+.idea/
+.vscode/
+*.iml
+*.log
+Dockerfile
+docker-compose*.yml
+Caddyfile
+*.md
