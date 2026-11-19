@@ -1,0 +1,32 @@
+# Archivos de entorno y credenciales (NUNCA SUBIR)
+.env
+*.env
+!.env.example
+
+# Compilación y artefactos de Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Archivos subidos por usuarios y logs del servidor
+uploads/
+logs/
+*.log
+
+# IDEs y editores
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# Archivos del sistema operativo y temporales
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+CONTEXTO_SESION.md
