@@ -18,7 +18,7 @@ RUN mvn -B -q -DskipTests package
 FROM eclipse-temurin:21-jre
 
 ENV TZ=America/Bogota \
-    JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Duser.timezone=America/Bogota -Dfile.encoding=UTF-8" \
+    JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Duser.timezone=America/Bogota -Dfile.encoding=UTF-8 -Djava.net.preferIPv4Stack=true" \
     UPLOAD_DIR=/app/uploads \
     LOG_FILE=/app/logs/backend.log
 

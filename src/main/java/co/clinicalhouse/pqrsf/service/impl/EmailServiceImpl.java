@@ -141,12 +141,39 @@ public class EmailServiceImpl implements EmailService {
             log.info("[SIMULACIÓN CORREO] Para: {} | Asunto: {} | Adjuntos: {}", to, asunto, adjuntos.size());
             return;
         }
-        try {
-            enviar(to, asunto, html, adjuntos);
-        } catch (Exception e) {
-            // No se propaga para no revertir la transacción de base de datos
-            log.error("No se pudo enviar correo a: {}. Error: {}", to, e.getMessage());
+        // Reintentos ante cortes momentáneos de conexión con el servidor SMTP (p. ej. "Couldn't connect to host")
+        for (int intento = 1; intento <= MAX_INTENTOS_ENVIO; intento++) {
+            try {
+                enviar(to, asunto, html, adjuntos);
+                return;
+            } catch (Exception e) {
+                boolean reintentable = esErrorDeConexion(e) && intento < MAX_INTENTOS_ENVIO;
+                if (!reintentable) {
+                    // No se propaga para no revertir la transacción de base de datos
+                    log.error("No se pudo enviar correo a: {} (intento {}/{}). Error: {}", to, intento, MAX_INTENTOS_ENVIO, e.getMessage());
+                    return;
+                }
+                log.warn("Fallo de conexión SMTP enviando a {} (intento {}/{}); se reintenta. Error: {}", to, intento, MAX_INTENTOS_ENVIO, e.getMessage());
+                try {
+                    Thread.sleep(3000L * intento);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
         }
+    }
+
+    private static final int MAX_INTENTOS_ENVIO = 3;
+
+    private static boolean esErrorDeConexion(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof java.net.SocketTimeoutException || t instanceof java.net.ConnectException
+                    || t instanceof java.net.UnknownHostException) return true;
+            String m = String.valueOf(t.getMessage()).toLowerCase();
+            if (m.contains("couldn't connect") || m.contains("connection failed") || m.contains("timed out")) return true;
+        }
+        return false;
     }
 
     private void enviar(String to, String asunto, String html, List<Adjunto> adjuntos) throws Exception {
