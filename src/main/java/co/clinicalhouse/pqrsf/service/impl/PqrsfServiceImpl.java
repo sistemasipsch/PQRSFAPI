@@ -177,7 +177,7 @@ public class PqrsfServiceImpl implements PqrsfService {
         // 1. Validar archivos adjuntos si existen
         fileStorageService.validarArchivos(files);
 
-        // 2. Generar consecutivo en mayúsculas: PQRSF-CH-0001
+        // 2. Generar consecutivo anual: PQRSF-CH-2026-00001
         String consecutivo = generarSiguienteConsecutivo();
 
         // 3. Mapear y construir entidad Pqrsf
@@ -753,25 +753,31 @@ public class PqrsfServiceImpl implements PqrsfService {
         return serie;
     }
 
+    /**
+     * Consecutivo anual: PQRSF-CH-2026-00001. La numeración vuelve a 00001 cada año.
+     */
     private synchronized String generarSiguienteConsecutivo() {
+        String prefijo = "PQRSF-CH-" + LocalDateTime.now().getYear() + "-";
+        int siguiente = 1;
+
         Optional<String> ultimo = pqrsfRepository.findLastConsecutivo();
-        if (ultimo.isEmpty()) {
-            return "PQRSF-CH-0001";
-        }
-
-        try {
+        if (ultimo.isPresent()) {
             String str = ultimo.get().toUpperCase();
-            int idx = str.lastIndexOf("-");
-            if (idx != -1) {
-                int num = Integer.parseInt(str.substring(idx + 1));
-                return String.format("PQRSF-CH-%04d", num + 1);
+            if (str.startsWith(prefijo)) {
+                try {
+                    siguiente = Integer.parseInt(str.substring(prefijo.length())) + 1;
+                } catch (NumberFormatException e) {
+                    siguiente = 1;
+                }
             }
-        } catch (Exception e) {
-            // fallback
         }
 
-        long count = pqrsfRepository.countTotal();
-        return String.format("PQRSF-CH-%04d", count + 1);
+        String consecutivo = String.format("%s%05d", prefijo, siguiente);
+        // Salvaguarda ante colisiones (p. ej. datos editados a mano)
+        while (pqrsfRepository.findByConsecutivo(consecutivo).isPresent()) {
+            consecutivo = String.format("%s%05d", prefijo, ++siguiente);
+        }
+        return consecutivo;
     }
 
     private PqrsfResponseDTO mapearADTO(Pqrsf p) {
